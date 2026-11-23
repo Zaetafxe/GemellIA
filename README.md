@@ -1,5 +1,7 @@
 # VisitorIA
 
+> **Diseño y desarrollo: Ing. Alonso Gamez**
+
 **Mide el networking de tu evento.** VisitorIA registra cuántas personas se acercan a cada expositor y cuánto tiempo se quedan, y lo convierte en un tablero de indicadores para saber qué stands generaron más conexiones.
 
 - Los expositores activan su stand desde el celular y obtienen un código.
@@ -287,3 +289,9 @@ VisitorIA/
 ## Privacidad
 
 VisitorIA guarda el **nombre** (y empresa opcional) que cada participante escribe, y los horarios de sus visitas. No guarda ubicación GPS ni datos de contacto. Antes de usarlo en un evento real, informa a los participantes y añade un aviso de privacidad acorde a la ley aplicable (por ejemplo, la LFPDPPP en México).
+
+---
+
+## Créditos
+
+**Diseño y desarrollo:** Ing. Alonso Gamez
