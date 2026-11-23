@@ -1,0 +1,11 @@
+# Base de datos local (contiene datos de participantes)
+visitoria.db
+visitoria.db-*
+
+node_modules/
+.env
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/

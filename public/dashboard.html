@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tablero VisitorIA</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root { --series-1: #2a78d6; --series-1-soft: rgba(42,120,214,.14); --grid: #ecebe7; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --series-1: #3987e5; --series-1-soft: rgba(57,135,229,.18); --grid: #2a2a28; } }
+    :root[data-theme="dark"] { --series-1: #3987e5; --series-1-soft: rgba(57,135,229,.18); --grid: #2a2a28; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .toolbar select { width: auto; min-width: 240px; flex: 1 1 240px; max-width: 420px; }
+    .toolbar .meta { color: var(--text-2); font-size: 14px; flex: 1 1 100%; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+    .kpi .label { font-size: 13px; color: var(--text-2); }
+    .kpi .value { font-size: 28px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+    .kpi .note { font-size: 12px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+    .grid .full { grid-column: 1 / -1; }
+    @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+    .card h2 { margin-bottom: 2px; }
+    .card .hint { margin-bottom: 12px; }
+    .chart-box { position: relative; height: 300px; }
+    .table-wrap { overflow-x: auto; margin: 0 -18px; padding: 0 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 9px 7px; border-top: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--text-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; border-top: 0; }
+    td.num, th.num { text-align: right; }
+    .bar-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    #t-ex { font-size: 13px; }
+    .bar-cell i { display: block; height: 6px; border-radius: 3px; background: var(--series-1); }
+    .pill { display: inline-flex; align-items: center; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--text); }
+    .empty { text-align: center; padding: 40px 10px; color: var(--text-2); }
+    /* Embudo */
+    .funnel { display: grid; gap: 14px; }
+    .funnel .step { display: grid; grid-template-columns: 150px 1fr 70px; align-items: center; gap: 12px; }
+    .funnel .lbl b { display: block; font-size: 14px; }
+    .funnel .lbl span { font-size: 12px; color: var(--muted); }
+    .funnel .track { height: 28px; background: var(--bg); border-radius: 6px; overflow: hidden; }
+    .funnel .fill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; }
+    .funnel .val { text-align: right; font-variant-numeric: tabular-nums; }
+    .funnel .val b { display: block; font-size: 18px; }
+    .funnel .val span { font-size: 12px; color: var(--text-2); }
+    @media (max-width: 520px) { .funnel .step { grid-template-columns: 1fr 70px; } .funnel .track { grid-column: 1 / -1; grid-row: 2; } }
+    /* Mapa de calor */
+    .heat { border-collapse: separate; border-spacing: 2px; }
+    .heat th, .heat td { border: 0; padding: 0; }
+    .heat th { font-size: 11px; text-transform: none; letter-spacing: 0; padding: 4px 6px; font-weight: 500; }
+    .heat th.row { text-align: right; font-size: 13px; color: var(--text); padding-right: 10px; }
+    .heat td { min-width: 44px; height: 34px; text-align: center; font-size: 12px; border-radius: 4px; cursor: default; }
+    .heat td:hover { outline: 2px solid var(--text); outline-offset: -2px; }
+    .legend-ramp { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-top: 10px; }
+    .legend-ramp i { display: block; width: 140px; height: 8px; border-radius: 4px;
+      background: linear-gradient(to right, color-mix(in oklab, var(--series-1) 8%, var(--surface)), var(--series-1)); }
+    .arrow { color: var(--muted); padding: 0 4px; }
+    .sig { font-size: 12px; color: var(--text-2); }
+  </style>
+</head>
+<body>
+<div class="wrap wide">
+  <div class="brand">
+    <div class="logo">V</div>
+    <div><h1>Visitor<span>IA</span> · Tablero</h1><div class="sub">Indicadores de networking por expositor</div></div>
+    <div class="spacer"></div>
+    <a class="btn ghost small" href="/">App</a>
+  </div>
+
+  <div class="toolbar">
+    <select id="event" aria-label="Evento"></select>
+    <button class="btn ghost small" id="csv">Exportar CSV</button>
+    <button class="btn ghost small" id="demo">Cargar evento demo</button>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <div id="empty" class="card empty hidden">
+    <h2>Aún no hay eventos</h2>
+    <p>Crea uno desde la app (modo expositor) o carga un evento de demostración.</p>
+  </div>
+
+  <div id="content" class="hidden">
+    <div class="kpis">
+      <div class="kpi"><div class="label">Participantes</div><div class="value" id="k-people">0</div><div class="note" id="k-live"></div></div>
+      <div class="kpi"><div class="label">Expositores</div><div class="value" id="k-ex">0</div><div class="note" id="k-ex-note"></div></div>
+      <div class="kpi"><div class="label">Conexiones</div><div class="value" id="k-visits">0</div><div class="note" id="k-perperson"></div></div>
+      <div class="kpi"><div class="label">Tiempo total de networking</div><div class="value" id="k-time">0</div><div class="note">horas acumuladas</div></div>
+      <div class="kpi"><div class="label">Duración promedio</div><div class="value" id="k-avg">0</div><div class="note">minutos por conexión</div></div>
+      <div class="kpi"><div class="label">Conversaciones</div><div class="value" id="k-conv">0%</div><div class="note">conexiones de 2 min o más</div></div>
+      <div class="kpi"><div class="label">Regresaron a un stand</div><div class="value" id="k-ret">0%</div><div class="note" id="k-ret-note">de los participantes</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Ranking de expositores</h2>
+        <div class="hint">Minutos totales que los participantes pasaron en cada stand</div>
+        <div class="chart-box" id="rank-box"><canvas id="c-rank"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Duración de las conexiones</h2>
+        <div class="hint">Número de conexiones según el tiempo que duraron</div>
+        <div class="chart-box"><canvas id="c-dur"></canvas></div>
+      </div>
+      <div class="card full">
+        <h2>Afluencia durante el evento</h2>
+        <div class="hint">Personas enlazadas a algún stand, en intervalos de 15 minutos</div>
+        <div class="chart-box" style="height:240px"><canvas id="c-flow"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>Embudo de atracción</h2>
+        <div class="hint">De las conexiones, cuántas se detuvieron y cuántas terminaron en conversación</div>
+        <div class="funnel" id="funnel"></div>
+      </div>
+      <div class="card">
+        <h2>Tasa de conversación por expositor</h2>
+        <div class="hint">% de sus conexiones que duraron 2 minutos o más</div>
+        <div class="chart-box" id="conv-box"><canvas id="c-conv"></canvas></div>
+      </div>
+      <div class="card full">
+        <h2>Mapa de calor: stand por hora</h2>
+        <div class="hint">Personas distintas que visitaron cada stand en cada hora</div>
+        <div class="table-wrap"><table class="heat" id="t-heat"></table></div>
+        <div class="legend-ramp">menos <i></i> más</div>
+      </div>
+      <div class="card full">
+        <h2>Expositores</h2>
+        <div class="hint">Ordenados por tiempo total</div>
+        <div class="table-wrap"><table id="t-ex"></table></div>
+      </div>
+      <div class="card">
+        <h2>Participantes más activos</h2>
+        <div class="hint">Por tiempo total de networking</div>
+        <div class="table-wrap"><table id="t-people"></table></div>
+      </div>
+      <div class="card">
+        <h2>Flujo entre stands</h2>
+        <div class="hint">Recorridos más frecuentes: de un stand al siguiente</div>
+        <div class="table-wrap"><table id="t-flow"></table></div>
+      </div>
+      <div class="card full">
+        <h2>Conexiones recientes</h2>
+        <div class="hint">Últimos enlaces registrados</div>
+        <div class="table-wrap"><table id="t-recent"></table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mins = (ms) => ms / 60000;
+const fmtMin = (ms) => { const m = ms / 60000; return m < 1 ? `${Math.round(ms / 1000)} s` : m < 60 ? `${m.toFixed(1)} min` : `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`; };
+const hhmm = (t) => new Date(t).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+const qs = new URLSearchParams(location.search);
+let data = null, charts = {};
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Error');
+  return r.json();
+}
+
+async function loadEvents(selectId) {
+  const evs = await api('/api/events');
+  $('empty').classList.toggle('hidden', evs.length > 0);
+  $('content').classList.toggle('hidden', !evs.length);
+  $('event').innerHTML = evs.map((e) => `<option value="${e.id}">${esc(e.name)} · ${e.date}</option>`).join('');
+  if (!evs.length) return;
+  $('event').value = selectId || qs.get('event') || evs[0].id;
+  if (!$('event').value) $('event').value = evs[0].id;
+  await refresh();
+}
+
+async function refresh() {
+  if (!$('event').value) return;
+  data = await api('/api/stats?eventId=' + $('event').value);
+  render();
+}
+
+function compute() {
+  const { visits, exhibitors, conversationMs } = data;
+  const dur = (v) => Math.max(0, v.end_at - v.started_at);
+  const STOP_MS = 30e3; // "se detuvo": 30 s o más
+  const byEx = new Map(exhibitors.map((x) => [x.id, { ...x, visits: 0, people: new Map(), ms: 0, conv: 0, stopped: 0, live: 0, rssiSum: 0, rssiN: 0, hours: new Map() }]));
+  const byPerson = new Map();
+  for (const v of visits) {
+    const e = byEx.get(v.exhibitor_id), d = dur(v);
+    e.visits++; e.people.set(v.visitor_id, (e.people.get(v.visitor_id) || 0) + 1); e.ms += d;
+    if (d >= STOP_MS) e.stopped++; if (d >= conversationMs) e.conv++; if (v.live) e.live++;
+    if (v.rssi != null) { e.rssiSum += v.rssi; e.rssiN++; }
+    const h = new Date(v.started_at).getHours();
+    (e.hours.get(h) || e.hours.set(h, new Set()).get(h)).add(v.visitor_id);
+    const p = byPerson.get(v.visitor_id) || { name: v.visitor, company: v.visitor_company, ex: new Set(), ms: 0, path: [] };
+    p.ex.add(v.exhibitor_id); p.ms += d; p.path.push(v); byPerson.set(v.visitor_id, p);
+  }
+  const ex = [...byEx.values()].map((e) => ({
+    ...e, people: e.people.size, returners: [...e.people.values()].filter((n) => n > 1).length,
+    avg: e.visits ? e.ms / e.visits : 0, convRate: e.visits ? e.conv / e.visits : 0, rssi: e.rssiN ? e.rssiSum / e.rssiN : null,
+  })).sort((a, b) => b.ms - a.ms);
+  const people = [...byPerson.values()].map((p) => ({ ...p, ex: p.ex.size })).sort((a, b) => b.ms - a.ms);
+  // Flujo: transiciones consecutivas entre stands distintos
+  const flows = new Map();
+  for (const p of byPerson.values()) {
+    for (let i = 1; i < p.path.length; i++) {
+      const a = p.path[i - 1], b = p.path[i];
+      if (a.exhibitor_id === b.exhibitor_id) continue;
+      const k = a.exhibitor + '\u0000' + b.exhibitor;
+      flows.set(k, (flows.get(k) || 0) + 1);
+    }
+  }
+  const flowList = [...flows].map(([k, n]) => { const [from, to] = k.split('\u0000'); return { from, to, n }; }).sort((a, b) => b.n - a.n);
+  const returnersPeople = [...byPerson.values()].filter((p) => p.path.length > p.ex.size).length;
+  const totalMs = visits.reduce((s, v) => s + dur(v), 0);
+  return {
+    ex, people, totalMs, dur, flowList, returnersPeople,
+    stopped: visits.filter((v) => dur(v) >= STOP_MS).length,
+    conv: visits.filter((v) => dur(v) >= conversationMs).length,
+    live: visits.filter((v) => v.live).length,
+    ble: visits.filter((v) => v.source === 'ble').length,
+  };
+}
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function chartDefaults() {
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = css('--text-2');
+  Chart.defaults.borderColor = css('--grid');
+  Object.assign(Chart.defaults.plugins.tooltip, {
+    backgroundColor: css('--surface'), titleColor: css('--text'), bodyColor: css('--text-2'),
+    borderColor: css('--border'), borderWidth: 1, padding: 10, displayColors: false, cornerRadius: 8,
+  });
+  Chart.defaults.plugins.legend.display = false;
+  Chart.defaults.animation = false; // se refresca cada 10 s: sin parpadeo
+}
+function draw(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart($(id), config);
+}
+
+function render() {
+  const { event, visits, exhibitors } = data;
+  const c = compute();
+  chartDefaults();
+  const blue = css('--series-1'), soft = css('--series-1-soft');
+
+  $('meta').innerHTML = `<b>${esc(event.name)}</b> · ${event.date}${event.venue ? ' · ' + esc(event.venue) : ''} · actualizado ${hhmm(data.serverTime)}`;
+  $('k-people').textContent = c.people.length;
+  $('k-live').innerHTML = c.live ? `<i class="live-dot"></i>${c.live} enlazados ahora` : 'nadie enlazado ahora';
+  $('k-ex').textContent = exhibitors.length;
+  $('k-ex-note').textContent = `${c.ex.filter((e) => e.visits).length} con visitas`;
+  $('k-visits').textContent = visits.length;
+  $('k-perperson').textContent = c.people.length
+    ? `${(visits.length / c.people.length).toFixed(1)} por participante · ${Math.round((c.ble / visits.length) * 100)}% Bluetooth` : '';
+  $('k-ret').textContent = c.people.length ? Math.round((c.returnersPeople / c.people.length) * 100) + '%' : '0%';
+  $('k-ret-note').textContent = `${c.returnersPeople} participantes volvieron`;
+  $('k-time').textContent = (c.totalMs / 3600000).toFixed(1);
+  $('k-avg').textContent = visits.length ? mins(c.totalMs / visits.length).toFixed(1) : '0';
+  $('k-conv').textContent = visits.length ? Math.round((c.conv / visits.length) * 100) + '%' : '0%';
+
+  // Ranking (barras horizontales, un solo color)
+  $('rank-box').style.height = Math.max(240, c.ex.length * 34 + 40) + 'px';
+  draw('c-rank', {
+    type: 'bar',
+    data: { labels: c.ex.map((e) => e.name), datasets: [{ data: c.ex.map((e) => +mins(e.ms).toFixed(1)), backgroundColor: blue, borderRadius: 4, borderSkipped: 'start', barPercentage: .7, categoryPercentage: .9 }] },
+    options: {
+      indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, title: { display: true, text: 'minutos' }, grid: { color: css('--grid') } }, y: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: {
+        label: (i) => { const e = c.ex[i.dataIndex]; return [`${fmtMin(e.ms)} en total`, `${e.visits} conexiones · ${e.people} personas`, `${fmtMin(e.avg)} promedio · ${e.conv} conversaciones`]; },
+      } } },
+    },
+  });
+
+  // Distribución de duraciones
+  const bins = [['< 30 s', 0, 30e3], ['30 s–1 min', 30e3, 60e3], ['1–2 min', 60e3, 120e3], ['2–5 min', 120e3, 300e3], ['5–10 min', 300e3, 600e3], ['10+ min', 600e3, Infinity]];
+  const counts = bins.map(([, a, b]) => visits.filter((v) => { const d = c.dur(v); return d >= a && d < b; }).length);
+  draw('c-dur', {
+    type: 'bar',
+    data: { labels: bins.map((b) => b[0]), datasets: [{ data: counts, backgroundColor: blue, borderRadius: 4, borderSkipped: 'start', barPercentage: .85, categoryPercentage: .95 }] },
+    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'conexiones' } }, x: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: { label: (i) => `${i.raw} conexiones (${visits.length ? Math.round(i.raw / visits.length * 100) : 0}%)` } } } },
+  });
+
+  // Afluencia: personas simultáneas por intervalo de 15 min
+  if (visits.length) {
+    const step = 15 * 60e3;
+    const t0 = Math.floor(Math.min(...visits.map((v) => v.started_at)) / step) * step;
+    const t1 = Math.ceil(Math.max(...visits.map((v) => v.end_at)) / step) * step;
+    const pts = [];
+    for (let t = t0; t <= t1; t += step) {
+      const present = new Set(visits.filter((v) => v.started_at < t + step && v.end_at >= t).map((v) => v.visitor_id));
+      pts.push({ t, n: present.size });
+    }
+    draw('c-flow', {
+      type: 'line',
+      data: { labels: pts.map((p) => hhmm(p.t)), datasets: [{ data: pts.map((p) => p.n), borderColor: blue, backgroundColor: soft, fill: true, borderWidth: 2, tension: .3, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: blue, pointHoverBorderColor: css('--surface'), pointHoverBorderWidth: 2 }] },
+      options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'personas' } }, x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } } },
+        plugins: { tooltip: { callbacks: { title: (i) => `${i[0].label} – ${hhmm(pts[i[0].dataIndex].t + step)}`, label: (i) => `${i.raw} personas en stands` } } } },
+    });
+  } else if (charts['c-flow']) { charts['c-flow'].destroy(); delete charts['c-flow']; }
+
+  // Embudo de atracción
+  const pct = (n) => visits.length ? Math.round((n / visits.length) * 100) : 0;
+  $('funnel').innerHTML = [
+    ['Se acercaron', 'todas las conexiones', visits.length],
+    ['Se detuvieron', '30 s o más', c.stopped],
+    ['Conversaron', '2 min o más', c.conv],
+  ].map(([l, s, n]) => `<div class="step"><div class="lbl"><b>${l}</b><span>${s}</span></div>
+      <div class="track" title="${l}: ${n} (${pct(n)}%)"><div class="fill" style="width:${pct(n)}%"></div></div>
+      <div class="val"><b>${n}</b><span>${pct(n)}%</span></div></div>`).join('');
+
+  // Tasa de conversación por expositor (orden propio, mismo color: es una sola serie)
+  const convEx = c.ex.filter((e) => e.visits).sort((a, b) => b.convRate - a.convRate);
+  $('conv-box').style.height = Math.max(200, convEx.length * 34 + 40) + 'px';
+  draw('c-conv', {
+    type: 'bar',
+    data: { labels: convEx.map((e) => e.name), datasets: [{ data: convEx.map((e) => Math.round(e.convRate * 100)), backgroundColor: blue, borderRadius: 4, borderSkipped: 'start', barPercentage: .7, categoryPercentage: .9 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } }, y: { grid: { display: false } } },
+      plugins: { tooltip: { callbacks: { label: (i) => { const e = convEx[i.dataIndex]; return [`${i.raw}% conversaciones`, `${e.conv} de ${e.visits} conexiones`]; } } } } },
+  });
+
+  // Mapa de calor stand × hora (rampa secuencial de un solo tono)
+  const hours = [...new Set(visits.map((v) => new Date(v.started_at).getHours()))].sort((a, b) => a - b);
+  const heatMax = Math.max(1, ...c.ex.flatMap((e) => [...e.hours.values()].map((s) => s.size)));
+  $('t-heat').innerHTML = hours.length
+    ? `<tr><th></th>${hours.map((h) => `<th>${String(h).padStart(2, '0')}:00</th>`).join('')}</tr>`
+      + c.ex.map((e) => `<tr><th class="row">${esc(e.name)}</th>${hours.map((h) => {
+        const n = e.hours.get(h)?.size || 0, f = n / heatMax, mix = Math.round(8 + f * 92);
+        return `<td title="${esc(e.name)} · ${String(h).padStart(2, '0')}:00–${String(h + 1).padStart(2, '0')}:00 · ${n} personas"
+          style="background:color-mix(in oklab, var(--series-1) ${mix}%, var(--surface));color:${f > .55 ? '#fff' : 'var(--text-2)'}">${n || ''}</td>`;
+      }).join('')}</tr>`).join('')
+    : '<tr><td class="hint">Sin datos</td></tr>';
+
+  // Flujo entre stands
+  const maxFlow = Math.max(1, ...c.flowList.map((f) => f.n));
+  $('t-flow').innerHTML = `<tr><th>De</th><th></th><th>A</th><th class="num">Personas</th></tr>`
+    + (c.flowList.slice(0, 10).map((f) => `<tr><td>${esc(f.from)}</td><td class="arrow">→</td><td>${esc(f.to)}</td>
+      <td class="num"><div class="bar-cell"><i style="width:${Math.round(f.n / maxFlow * 60)}px"></i>${f.n}</div></td></tr>`).join('')
+      || '<tr><td colspan="4" class="hint">Aún no hay recorridos entre stands</td></tr>');
+
+  // Tabla de expositores
+  const sig = (r) => r == null ? '—' : `${r >= -60 ? 'Platicando' : r >= -70 ? 'Muy cerca' : 'Cerca'} <span class="sig">${Math.round(r)} dBm</span>`;
+  const maxMs = Math.max(1, ...c.ex.map((e) => e.ms));
+  $('t-ex').innerHTML = `<tr><th>#</th><th>Expositor</th><th>Código</th><th class="num">Ahora</th><th class="num">Conexiones</th><th class="num">Personas</th><th class="num">Regresaron</th><th class="num">Conv.</th><th class="num">Tasa conv.</th><th class="num">Promedio</th><th>Cercanía BLE</th><th class="num">Tiempo total</th></tr>`
+    + c.ex.map((e, i) => `<tr><td>${i + 1}</td><td><b>${esc(e.name)}</b>${e.company ? `<div class="sig">${esc(e.company)}</div>` : ''}</td><td><span class="pill">${e.code}</span></td>
+      <td class="num">${e.live ? `<i class="live-dot"></i>${e.live}` : '—'}</td><td class="num">${e.visits}</td><td class="num">${e.people}</td><td class="num">${e.returners}</td><td class="num">${e.conv}</td>
+      <td class="num">${Math.round(e.convRate * 100)}%</td><td class="num">${fmtMin(e.avg)}</td><td>${sig(e.rssi)}</td>
+      <td class="num"><div class="bar-cell"><i style="width:${Math.round(e.ms / maxMs * 80)}px"></i>${fmtMin(e.ms)}</div></td></tr>`).join('');
+
+  $('t-people').innerHTML = `<tr><th>Participante</th><th class="num">Stands</th><th class="num">Tiempo</th></tr>`
+    + (c.people.slice(0, 10).map((p) => `<tr><td>${esc(p.name)}${p.company ? ` <span class="hint">· ${esc(p.company)}</span>` : ''}</td><td class="num">${p.ex}</td><td class="num">${fmtMin(p.ms)}</td></tr>`).join('')
+      || '<tr><td colspan="3" class="hint">Sin datos</td></tr>');
+
+  $('t-recent').innerHTML = `<tr><th>Hora</th><th>Participante</th><th>Expositor</th><th class="num">Duración</th></tr>`
+    + ([...visits].reverse().slice(0, 10).map((v) => `<tr><td>${hhmm(v.started_at)}</td><td>${esc(v.visitor)}</td><td>${esc(v.exhibitor)}</td>
+      <td class="num">${v.live ? '<i class="live-dot"></i>' : ''}${fmtMin(c.dur(v))}</td></tr>`).join('') || '<tr><td colspan="4" class="hint">Sin datos</td></tr>');
+}
+
+$('event').addEventListener('change', () => { history.replaceState(null, '', '?event=' + $('event').value); refresh(); });
+$('demo').addEventListener('click', async () => { $('demo').disabled = true; const ev = await api('/api/demo', {}); $('demo').disabled = false; loadEvents(ev.id); });
+$('csv').addEventListener('click', () => {
+  if (!data) return;
+  const rows = [['evento', 'fecha', 'expositor', 'empresa_expositor', 'codigo', 'participante', 'empresa_participante', 'inicio', 'fin', 'duracion_seg', 'fuente', 'rssi_prom']];
+  for (const v of data.visits) rows.push([data.event.name, data.event.date, v.exhibitor, v.exhibitor_company || '', v.code, v.visitor, v.visitor_company || '',
+    new Date(v.started_at).toISOString(), new Date(v.end_at).toISOString(), Math.round((v.end_at - v.started_at) / 1000), v.source, v.rssi ?? '']);
+  const csv = '﻿' + rows.map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: `visitoria-${data.event.date}.csv` });
+  a.click();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => data && render());
+setInterval(() => !document.hidden && refresh().catch(() => {}), 10000);
+loadEvents().catch((e) => { $('meta').textContent = 'No se pudo conectar con el servidor: ' + e.message; });
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2a78d6">
+  <title>VisitorIA</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo">V</div>
+    <div><h1>Visitor<span>IA</span></h1><div class="sub">Mide el networking de tu evento</div></div>
+  </div>
+
+  <!-- ===== Inicio ===== -->
+  <section id="v-home">
+    <button class="card role" data-go="v-ex-setup">
+      <div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+      <div><b>Soy expositor</b><span>Genero mi código y veo quién se acerca</span></div>
+    </button>
+    <button class="card role" data-go="v-vi-setup">
+      <div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+      <div><b>Soy participante</b><span>Me enlazo con los expositores que visito</span></div>
+    </button>
+    <a class="card role" href="dashboard.html">
+      <div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+      <div><b>Tablero del evento</b><span>Indicadores, rankings y conexiones</span></div>
+    </a>
+  </section>
+
+  <!-- ===== Expositor: registro ===== -->
+  <section id="v-ex-setup" class="hidden">
+    <div class="card">
+      <h2>Registro de expositor</h2>
+      <p>Elige el evento y el nombre de tu stand.</p>
+      <label for="ex-event">Evento</label>
+      <select id="ex-event"></select>
+      <div id="new-event" class="hidden">
+        <label for="ev-name">Nombre del evento</label>
+        <input id="ev-name" placeholder="Expo Innovación 2026">
+        <div class="row">
+          <div><label for="ev-date">Fecha</label><input id="ev-date" type="date"></div>
+          <div><label for="ev-venue">Sede</label><input id="ev-venue" placeholder="Opcional"></div>
+        </div>
+      </div>
+      <label for="ex-name">Nombre del expositor o stand</label>
+      <input id="ex-name" placeholder="Ej. Stand IA Aplicada">
+      <label for="ex-company">Empresa</label>
+      <input id="ex-company" placeholder="Opcional">
+      <button class="btn" id="ex-create">Generar mi código</button>
+      <div class="err" id="ex-err"></div>
+    </div>
+    <div class="card">
+      <h2>¿Ya tienes código?</h2>
+      <input id="ex-code" class="code" maxlength="6" placeholder="ABC123">
+      <button class="btn ghost" id="ex-open">Abrir mi stand</button>
+    </div>
+    <button class="btn ghost" data-go="v-home">Volver</button>
+  </section>
+
+  <!-- ===== Expositor: stand activo ===== -->
+  <section id="v-ex-live" class="hidden">
+    <div class="card center">
+      <div class="hint" id="exl-event"></div>
+      <h2 id="exl-name"></h2>
+      <p>Los participantes escanean este código con la cámara del celular</p>
+      <div class="qr" id="exl-qr"></div>
+      <div class="bigcode" id="exl-code"></div>
+    </div>
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><b id="exl-live">0</b><span><i class="live-dot"></i>Ahora</span></div>
+        <div class="stat"><b id="exl-people">0</b><span>Personas</span></div>
+        <div class="stat"><b id="exl-min">0</b><span>Minutos</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>En tu stand ahora</h2>
+      <ul class="list" id="exl-current"></ul>
+    </div>
+    <button class="btn ghost" id="exl-exit">Cambiar de stand</button>
+  </section>
+
+  <!-- ===== Visitante: registro ===== -->
+  <section id="v-vi-setup" class="hidden">
+    <div class="card">
+      <h2>Tus datos</h2>
+      <p>Solo se piden una vez y se guardan en este celular.</p>
+      <label for="vi-name">Nombre</label>
+      <input id="vi-name" placeholder="Tu nombre" autocomplete="name">
+      <label for="vi-company">Empresa</label>
+      <input id="vi-company" placeholder="Opcional" autocomplete="organization">
+    </div>
+    <div class="card">
+      <h2>Enlázate a un expositor</h2>
+      <p>Escanea el QR del stand con la cámara o escribe su código.</p>
+      <input id="vi-code" class="code" maxlength="6" placeholder="ABC123">
+      <button class="btn" id="vi-start">Enlazar</button>
+      <div class="err" id="vi-err"></div>
+    </div>
+    <button class="btn ghost" data-go="v-home">Volver</button>
+  </section>
+
+  <!-- ===== Visitante: visita activa ===== -->
+  <section id="v-vi-live" class="hidden">
+    <div class="card center">
+      <div class="hint"><i class="live-dot"></i><span id="vil-status">Enlazado con</span></div>
+      <h2 id="vil-name" style="font-size:22px;margin-top:6px"></h2>
+      <div class="hint" id="vil-event"></div>
+      <div class="timer" id="vil-timer">00:00</div>
+      <p class="hint">Mantén esta pantalla abierta mientras estás en el stand.</p>
+      <button class="btn danger" id="vil-end">Terminar visita</button>
+      <button class="btn hidden" id="vil-resume">Reconectar</button>
+    </div>
+  </section>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
